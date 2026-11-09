@@ -25,3 +25,7 @@ __pycache__/
 Thumbs.db
 Desktop.ini
 desktop.ini
+
+# ---- Release zips (tools/package.ps1) ----
+dist/
+tools/private-names.txt
