@@ -1,0 +1,5 @@
+{
+  "ssh_target": "user@192.0.2.10",
+  "remote_ledger": "/home/user/obenseuer-ledger/site/ledger.json",
+  "site_url": "http://192.0.2.10:8090"
+}

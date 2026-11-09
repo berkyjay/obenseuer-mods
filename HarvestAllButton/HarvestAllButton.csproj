@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>HarvestAllButton</AssemblyName>
+    <RootNamespace>HarvestAllButton</RootNamespace>
+    <Product>Harvest All Button</Product>
+    <Description>Adds one-click Harvest and Replant to the growing panel of every planter the player owns.</Description>
+    <Version>0.2.3</Version>
+    <BepInExPluginGuid>berkyjay.obenseuer.harvestallbutton</BepInExPluginGuid>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Unity.TextMeshPro" HintPath="$(ManagedDir)\Unity.TextMeshPro.dll" Private="false" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Recipe Book</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@400;500;600&family=Saira+Stencil+One&display=swap">
+<style>
+/* Same sheet as the ledger: recipes by station, each with its ingredients against what you own. */
+:root {
+  --bg: #e7eae4; --panel: #f4f5f1; --fg: #1c2320; --muted: #56615a; --line: #c4cbc2;
+  --accent: #0d675a; --accent-soft: #d2e6df; --brass: #7d5200; --brass-soft: #f0e2c2;
+  --red: #a11f1f; --red-soft: #f6d8d5; --finished: #a3aba5;
+  --display: "Saira Stencil One", "Arial Narrow", Impact, sans-serif;
+  --body: "IBM Plex Sans Condensed", "Arial Narrow", "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #131816; --panel: #1b211e; --fg: #e4e8e3; --muted: #9aa69e; --line: #343d38;
+  --accent: #64c6b1; --accent-soft: #1c3a33; --brass: #e2b65a; --brass-soft: #3a2f17;
+  --red: #f39a90; --red-soft: #472020; --finished: #66706a; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #131816; --panel: #1b211e; --fg: #e4e8e3; --muted: #9aa69e; --line: #343d38;
+  --accent: #64c6b1; --accent-soft: #1c3a33; --brass: #e2b65a; --brass-soft: #3a2f17;
+  --red: #f39a90; --red-soft: #472020; --finished: #66706a; color-scheme: dark }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 400 15px/1.4 var(--body); }
+.page { padding-block: 28px 48px;
+  padding-left: max(clamp(16px, 2.5vw, 40px), env(safe-area-inset-left, 0px));
+  padding-right: max(clamp(16px, 2.5vw, 40px), env(safe-area-inset-right, 0px));
+  display: grid; gap: 22px; }
+.page > * { min-width: 0; }
+header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 32px; }
+h1 { margin: 0; font: 400 clamp(30px, 6vw, 46px)/1.05 var(--display); letter-spacing: .01em; text-wrap: balance; }
+.stamp { margin: 6px 0 0; color: var(--muted); }
+.nav { color: var(--accent); font-weight: 500; }
+.check-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 10px; }
+#check { font: inherit; font-weight: 500; color: var(--accent); background: var(--panel); border: 1px solid var(--accent);
+  border-radius: 3px; padding: 5px 12px; cursor: pointer; }
+#check:hover:enabled { background: var(--accent-soft); }
+#check:disabled { color: var(--muted); border-color: var(--line); cursor: default; }
+#check-note { color: var(--muted); min-width: 0; }
+.grand { margin-left: auto; text-align: right; font-variant-numeric: tabular-nums; }
+.grand b { display: block; font: 400 clamp(30px, 6vw, 46px)/1.05 var(--display); color: var(--accent); }
+h2 { margin: 0; font-size: 13px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.tabs { display: flex; border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
+.tabs button { font: inherit; font-weight: 500; color: var(--muted); background: var(--panel); border: 0; padding: 6px 14px; cursor: pointer; }
+.tabs button + button { border-left: 1px solid var(--line); }
+.tabs button[aria-pressed="true"] { background: var(--accent); color: var(--bg); }
+input[type=search], select { font: inherit; color: inherit; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 3px; padding: 6px 8px; box-sizing: border-box; min-width: 0; }
+input[type=search] { width: min(280px, 100%); }
+select { max-width: 100%; }
+.summary { margin: 0; color: var(--muted); }
+.focus-bar { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; padding: 8px 12px;
+  background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 3px; }
+.focus-bar[hidden] { display: none; }
+.link { all: unset; cursor: pointer; color: var(--accent); font-weight: 500; }
+.link:hover { text-decoration: underline; }
+.link:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.stations { display: grid; gap: 20px; }
+.station { display: grid; gap: 8px; min-width: 0; }
+.station h3 { margin: 0; font-size: 18px; font-weight: 600; }
+.station h3 span { color: var(--muted); font-weight: 400; font-size: 15px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); gap: 8px; align-items: start; }
+.card { padding: 9px 12px 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 3px; min-width: 0;
+  display: grid; gap: 6px; scroll-margin-top: 16px; }
+.card.ready { border-left: 4px solid var(--accent); }
+.card.almost { border-left: 4px solid var(--brass); }
+.card.unknown { color: var(--muted); }
+.card.focused { box-shadow: 0 0 0 2px var(--accent); }
+.card-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.card-head b { font-weight: 600; overflow-wrap: anywhere; }
+.badge { flex: none; font-size: 13px; font-weight: 600; padding: 1px 7px; border-radius: 3px; white-space: nowrap; }
+.badge.ready { background: var(--accent); color: var(--bg); }
+.badge.almost { background: var(--brass-soft); color: var(--brass); }
+.badge.short { background: var(--red-soft); color: var(--red); }
+.badge.skill { background: var(--brass-soft); color: var(--brass); }
+.badge.unknown { border: 1px solid var(--line); color: var(--muted); }
+.ins { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px; }
+.ins li { display: inline-flex; align-items: baseline; gap: 5px; padding: 1px 7px; border-radius: 3px; border: 1px solid var(--line); }
+.ins li.ok { background: var(--accent-soft); border-color: transparent; }
+.ins li.short { background: var(--red-soft); border-color: transparent; }
+.ins li.short .link { color: var(--red); }
+.ins li small { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.card p { margin: 0; }
+.makes .link { font-weight: 400; }
+.facts { color: var(--muted); font-size: 13px; }
+.warn { color: var(--brass); font-size: 13px; }
+.warn.bad { color: var(--red); }
+.none { color: var(--muted); }
+
+.scroll { overflow-x: auto; border: 1px solid var(--line); background: var(--panel); border-radius: 3px; }
+table { border-collapse: separate; border-spacing: 0; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { padding: 5px 12px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
+th { vertical-align: bottom; font-weight: 600; white-space: normal; }
+th button { all: unset; cursor: pointer; display: block; width: 100%; }
+th button:hover { color: var(--accent); }
+th[aria-sort="ascending"] button::after { content: " \2191"; } th[aria-sort="descending"] button::after { content: " \2193"; }
+th:first-child, td:first-child { position: sticky; left: 0; z-index: 1; text-align: left; background: var(--panel); }
+td.nil { color: var(--line); }
+td.good { color: var(--accent); font-weight: 600; }
+tr.focused td { background: var(--accent-soft); }
+.row-btn { all: unset; cursor: pointer; }
+.row-btn::before { content: "\25B8"; display: inline-block; width: 1.1em; color: var(--muted); }
+.row-btn[aria-expanded="true"]::before { content: "\25BE"; }
+.row-btn:hover { color: var(--accent); }
+.row-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+tr.detail td { background: var(--bg); text-align: left; white-space: normal; padding: 8px 12px 12px 30px; }
+tr.detail td:first-child { position: static; }
+.detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 10px 24px; }
+.detail-grid h4 { margin: 0 0 4px; font-size: 13px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+.detail-grid ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 3px; }
+.detail-grid li { display: flex; gap: 8px; align-items: baseline; justify-content: space-between; }
+.detail-grid li .badge { font-size: 12px; }
+.notes { color: var(--muted); max-width: 80ch; }
+.notes ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <header>
+    <div>
+      <h1>Recipe Book</h1>
+      <p class="stamp" id="stamp"></p>
+      <div class="check-row">
+        <button type="button" id="check">Check for a new save</button>
+        <span id="check-note" role="status"></span>
+        <a class="nav" href="./">Resource ledger &rarr;</a>
+      </div>
+    </div>
+    <div class="grand"><b id="grand"></b><span id="grand-note"></span></div>
+  </header>
+
+  <section class="tools" aria-label="Filters">
+    <div class="tabs" role="group" aria-label="View">
+      <button type="button" id="tab-recipes">Recipes</button>
+      <button type="button" id="tab-items">Ingredients</button>
+    </div>
+    <input type="search" id="search" placeholder="Find a recipe or ingredient" aria-label="Find a recipe or ingredient">
+    <select id="station" aria-label="Station"></select>
+    <select id="show" aria-label="Which recipes">
+      <option value="ready">Ready to make</option>
+      <option value="almost">Ready, or one ingredient short</option>
+      <option value="known">Every recipe you know</option>
+      <option value="unknown">Recipes you don't know yet</option>
+      <option value="all">Every recipe</option>
+    </select>
+    <select id="own" aria-label="Which ingredients" hidden>
+      <option value="have">Ingredients you have</option>
+      <option value="all">Every ingredient</option>
+    </select>
+  </section>
+
+  <div class="focus-bar" id="focus-bar" hidden></div>
+  <p class="summary" id="summary" role="status"></p>
+
+  <main id="view"></main>
+
+  <section class="notes">
+    <h2>How this reads the game</h2>
+    <ul id="notes"></ul>
+  </section>
+</div>
+
+<script>
+const POLL_MS = 60000, CHECK_LIMIT_MS = 90000, EPS = 1e-6;
+const ORDER = { ready: 0, almost: 1, short: 2, skill: 3, unknown: 4 };
+const SHOW = {
+  ready: s => s.state === "ready",
+  almost: s => s.state === "ready" || s.state === "almost",
+  known: s => s.state !== "unknown",
+  unknown: s => s.state === "unknown",
+  all: () => true,
+};
+const VARIANTS = { LiquidContainer: "liquid container", GreenMushrooms: "green mushroom item" };
+let D = null, judged = new Map(), usedBy = new Map(), madeBy = new Map();
+const state = { view: "recipes", query: "", station: "", show: "ready", own: "have", recipe: null, item: null,
+  open: new Set(), sort: "name", dir: 1 };
+
+const fmt = n => n.toLocaleString("en-US", { maximumFractionDigits: 1 });
+const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); e.append(...kids); return e; };
+const byId = id => document.getElementById(id);
+const item = id => D.items[id] || { name: `Item ${id}` };
+const label = id => item(id).group && !/^any /i.test(item(id).name) ? `${item(id).name} (any)` : item(id).name;
+const amount = (id, n) => item(id).isLiquid ? `${fmt(n)} L` : fmt(n);
+const plural = (n, word) => `${fmt(n)} ${word}${n === 1 ? "" : "s"}`;
+
+function duration(s) {
+  if (!s) return "instant";
+  if (s >= 3600) return `${fmt(Math.round(s / 360) / 10)} h`;
+  if (s >= 60) return `${fmt(Math.round(s / 60))} min`;
+  return `${s} s`;
+}
+
+// How much of an ingredient you own, counted the way the game counts a station's input slots.
+function have(id, r, depth = 0) {
+  const it = D.items[id];
+  if (!it || depth > 2) return 0;
+  let h = r.ammo && it.uses !== undefined ? it.uses : (it.n || 0);
+  if (r.liquid) h += it.litres || 0;
+  for (const m of it.group || []) h += have(m, r, depth + 1);
+  return h;
+}
+
+function judge(r) {
+  const lines = r.in.map(([id, need]) => {
+    const h = have(id, r);
+    return { id, need, have: h, ok: h + EPS >= need };
+  });
+  const short = lines.filter(l => !l.ok).length;
+  const counted = lines.filter(l => l.need > 0);
+  const times = counted.length ? Math.min(...counted.map(l => Math.floor(l.have / l.need + EPS))) : null;
+  const level = D.skills[r.skill] ?? 0;
+  const gap = r.skill === "None" || r.min <= 0 ? 0 : r.min - level;
+  const skill = gap <= 0 ? "ok" : gap === 1 && !r.hard ? "close" : "low";
+  const st = !r.known ? "unknown" : short === 1 && lines.length > 1 ? "almost" : short ? "short" : skill === "low" ? "skill" : "ready";
+  return { lines, short, times, skill, level, state: st };
+}
+
+function badgeText(r, j) {
+  if (j.state === "ready") return j.times > 1 ? `Make ${fmt(j.times)}×` : "Ready";
+  if (j.state === "almost") return "1 short";
+  if (j.state === "short") return `${j.short} of ${j.lines.length} short`;
+  if (j.state === "skill") return `Needs ${r.skill} ${r.min}`;
+  return "Not known";
+}
+const badge = (r, j = judged.get(r)) => el("span", { className: "badge " + j.state, textContent: badgeText(r, j) });
+
+function index() {
+  judged = new Map(D.recipes.map(r => [r, judge(r)]));  // by recipe, since the game reuses an id
+  usedBy = new Map(); madeBy = new Map();
+  const put = (map, id, r) => { if (!map.has(id)) map.set(id, []); const list = map.get(id); if (!list.includes(r)) list.push(r); };
+  for (const r of D.recipes) {
+    for (const [id] of r.in) {
+      put(usedBy, id, r);
+      for (const m of item(id).group || []) put(usedBy, m, r);
+    }
+    for (const [id] of r.out) put(madeBy, id, r);
+  }
+}
+
+function matches(r, q) {
+  if (!q) return true;
+  if (r.name.toLowerCase().includes(q)) return true;
+  return r.in.concat(r.out).some(([id]) => [id, ...(item(id).group || [])].some(x => item(x).name.toLowerCase().includes(q)));
+}
+
+const go = hash => { location.hash = hash; };
+const itemLink = (id, text) => { const b = el("button", { type: "button", className: "link", textContent: text }); b.onclick = () => go(`item-${id}`); return b; };
+const recipeLink = r => { const b = el("button", { type: "button", className: "link", textContent: r.name }); b.onclick = () => go(`recipe-${r.id}`); return b; };
+
+function card(r) {
+  const j = judged.get(r);
+  const c = el("article", { className: `card ${j.state}${state.recipe === r.id ? " focused" : ""}`, id: `recipe-${r.id}` },
+    el("div", { className: "card-head" }, el("b", { textContent: r.name }), badge(r, j)));
+  const ins = el("ul", { className: "ins" });
+  for (const l of j.lines) {
+    const li = el("li", { className: r.known ? (l.ok ? "ok" : "short") : "" }, itemLink(l.id, `${amount(l.id, l.need)} ${label(l.id)}`),
+      el("small", { textContent: `have ${amount(l.id, l.have)}` }));
+    if (item(l.id).group) li.title = "Any of: " + item(l.id).group.map(m => item(m).name).join(", ");
+    ins.append(li);
+  }
+  if (!j.lines.length) ins.append(el("li", { textContent: "No ingredients" }));
+  c.append(ins);
+  const makes = el("p", { className: "makes" }, "Makes ");
+  r.out.forEach(([id, n], k) => makes.append(k ? ", " : "", `${amount(id, n)} `, itemLink(id, item(id).name)));
+  if (!r.out.length) makes.append("nothing you keep");
+  c.append(makes);
+  const facts = [duration(r.time)];
+  if (r.skill !== "None") facts.push(`${r.skill} ${r.min} (you're ${j.level})`);
+  if (r.fail) facts.push(`${Math.round(r.fail * 100)}% base fail`);
+  if (r.known === "found") facts.push("learned from reading or mail");
+  if (r.known === "crafted") facts.push("learned by crafting it");
+  c.append(el("p", { className: "facts", textContent: facts.join(" · ") }));
+  const warns = [];
+  if (j.skill === "close") warns.push([`One ${r.skill} level short: the station may grey it out.`, false]);
+  if (j.skill === "low") warns.push([`Your ${r.skill} is ${j.level}; this needs ${r.min}.`, true]);
+  if (r.needs) warns.push([`Station must be: ${r.needs.join(", ")}.`, false]);
+  if (r.not) warns.push([`Not on ${r.not.join(" or ")} stations.`, false]);
+  if (r.variant) warns.push([`Also needs ${plural(r.variant[1], VARIANTS[r.variant[0]] || r.variant[0])}.`, false]);
+  if (!r.known) {
+    const how = r.from.length ? `Learn it from ${r.from.join(" or ")}.` : r.tags.length ? `Recipe group: ${r.tags.join(", ")}.` : "No hint in the game data about where it's taught.";
+    warns.push([how, false]);
+  }
+  for (const [text, bad] of warns) c.append(el("p", { className: "warn" + (bad ? " bad" : ""), textContent: text }));
+  return c;
+}
+
+function renderRecipes(q) {
+  let list;
+  if (state.recipe !== null) list = D.recipes.filter(r => r.id === state.recipe);
+  else list = D.recipes.filter(r => (!state.station || r.station === state.station) && SHOW[state.show](judged.get(r)) && matches(r, q));
+  const stations = [...new Set(list.map(r => r.station))].sort((a, b) => a.localeCompare(b));
+  const cmp = (a, b) => ORDER[judged.get(a).state] - ORDER[judged.get(b).state] || a.name.localeCompare(b.name);
+  const ready = list.filter(r => judged.get(r).state === "ready").length;
+  byId("summary").textContent = state.recipe !== null ? "" : `${plural(list.length, "recipe")} shown, ${fmt(ready)} ready to make.`;
+  byId("view").replaceChildren(el("div", { className: "stations" }, ...stations.map(s => {
+    const here = list.filter(r => r.station === s).sort(cmp);
+    return el("section", { className: "station" },
+      el("h3", {}, s + " ", el("span", { textContent: plural(here.length, "recipe") })),
+      el("div", { className: "cards" }, ...here.map(card)));
+  })));
+  if (!list.length) byId("view").append(el("p", { className: "none", textContent: "No recipes match. Try another filter, or Every recipe." }));
+}
+
+function ingredientRows() {
+  const ids = [...usedBy.keys()];
+  const total = id => {
+    const it = item(id);
+    return (it.n || 0) + (it.litres || 0) + (it.group || []).reduce((s, m) => s + (item(m).n || 0) + (item(m).litres || 0), 0);
+  };
+  return ids.map(id => {
+    const uses = usedBy.get(id);
+    return { id, name: label(id), have: total(id),
+      known: uses.filter(r => r.known).length,
+      ready: uses.filter(r => judged.get(r).state === "ready").length,
+      made: (madeBy.get(id) || []).filter(r => r.known).length };
+  });
+}
+
+function sortHead(text, key) {
+  const th = el("th", { scope: "col" });
+  const b = el("button", { type: "button", textContent: text });
+  b.onclick = () => {
+    if (state.sort === key) state.dir = -state.dir;
+    else { state.sort = key; state.dir = key === "name" ? 1 : -1; }
+    render();
+  };
+  th.append(b);
+  if (state.sort === key) th.setAttribute("aria-sort", state.dir > 0 ? "ascending" : "descending");
+  return th;
+}
+
+function haveText(id) {
+  const it = item(id);
+  const parts = [];
+  if (it.n) parts.push(fmt(it.n) + (it.uses !== undefined ? ` (${fmt(it.uses)} uses)` : ""));
+  if (it.litres) parts.push(`${fmt(it.litres)} L`);
+  return parts.join(", ");
+}
+
+function detail(id) {
+  const it = item(id);
+  const where = el("ul");
+  const members = it.group ? it.group : [id];
+  for (const m of members) for (const [place, n] of item(m).where || [])
+    where.append(el("li", {}, el("span", { textContent: it.group ? `${item(m).name}, ${place}` : place }),
+      el("b", { textContent: amount(m, n) })));
+  if (!where.children.length) where.append(el("li", { className: "none", textContent: "None in your storage or on you." }));
+  const list = recipes => {
+    const ul = el("ul");
+    const sorted = [...recipes].sort((a, b) => ORDER[judged.get(a).state] - ORDER[judged.get(b).state] || a.name.localeCompare(b.name));
+    for (const r of sorted) ul.append(el("li", {}, el("span", {}, recipeLink(r), ` · ${r.station}`), badge(r)));
+    if (!sorted.length) ul.append(el("li", { className: "none", textContent: "None" }));
+    return ul;
+  };
+  const groupNote = it.group ? [el("p", { className: "facts", textContent: "Any of: " + it.group.map(m => item(m).name).join(", ") })] : [];
+  return el("div", { className: "detail-grid" },
+    el("div", {}, el("h4", { textContent: "Where you have it" }), where, ...groupNote),
+    el("div", {}, el("h4", { textContent: "Used in" }), list(usedBy.get(id) || [])),
+    el("div", {}, el("h4", { textContent: "Made by" }), list(madeBy.get(id) || [])));
+}
+
+function renderItems(q) {
+  const rows = ingredientRows().filter(r => r.id === state.item ||
+    ((state.own === "all" || r.have > 0) && (!q || r.name.toLowerCase().includes(q))));
+  const key = ["have", "known", "ready", "made"].includes(state.sort) ? state.sort : "name";
+  rows.sort((a, b) => (key === "name" ? a.name.localeCompare(b.name) : a[key] - b[key]) * state.dir || a.name.localeCompare(b.name));
+  byId("summary").textContent = `${plural(rows.length, "ingredient")} shown. Open one to see where it is, what uses it and what makes it.`;
+  const body = el("tbody");
+  for (const r of rows) {
+    const open = state.open.has(r.id);
+    const b = el("button", { className: "row-btn", type: "button", textContent: r.name });
+    b.setAttribute("aria-expanded", String(open));
+    b.onclick = () => { open ? state.open.delete(r.id) : state.open.add(r.id); render(); };
+    const cell = (v, good) => el("td", { className: v ? (good ? "good" : "") : "nil", textContent: v ? fmt(v) : "·" });
+    body.append(el("tr", { className: state.item === r.id ? "focused" : "", id: `item-${r.id}` },
+      el("td", {}, b), el("td", { className: r.have ? "" : "nil", textContent: r.have ? haveText(r.id) || fmt(r.have) : "·" }),
+      cell(r.known), cell(r.ready, true), cell(r.made)));
+    if (open) body.append(el("tr", { className: "detail" }, el("td", { colSpan: 5 }, detail(r.id))));
+  }
+  if (!rows.length) body.append(el("tr", {}, el("td", { colSpan: 5, textContent: "No ingredients match." })));
+  const head = el("tr", {}, sortHead("Ingredient", "name"), sortHead("You have", "have"), sortHead("Known recipes using it", "known"),
+    sortHead("Ready now", "ready"), sortHead("Known recipes making it", "made"));
+  byId("view").replaceChildren(el("div", { className: "scroll" }, el("table", {}, el("thead", {}, head), body)));
+}
+
+function renderFocus() {
+  const bar = byId("focus-bar");
+  bar.hidden = state.recipe === null;
+  if (bar.hidden) return;
+  const r = D.recipes.find(x => x.id === state.recipe);
+  const back = el("button", { type: "button", className: "link", textContent: "Show all recipes" });
+  back.onclick = () => go("");
+  bar.replaceChildren(el("span", { textContent: r ? `Showing ${r.name}.` : "That recipe isn't in the game data." }), back);
+}
+
+function render() {
+  if (!D) return;
+  const q = state.query.trim().toLowerCase();
+  byId("tab-recipes").setAttribute("aria-pressed", String(state.view === "recipes"));
+  byId("tab-items").setAttribute("aria-pressed", String(state.view === "items"));
+  byId("show").hidden = byId("station").hidden = state.view !== "recipes";
+  byId("own").hidden = state.view !== "items";
+  renderFocus();
+  if (state.view === "recipes") renderRecipes(q); else renderItems(q);
+}
+
+// The address holds the view and any recipe or ingredient you followed, so Back retraces your steps.
+function route() {
+  const h = decodeURIComponent(location.hash.slice(1));
+  let m;
+  state.recipe = null; state.item = null;
+  if ((m = h.match(/^recipe-(-?\d+)$/))) { state.view = "recipes"; state.recipe = Number(m[1]); }
+  else if ((m = h.match(/^item-(\d+)$/))) { state.view = "items"; state.item = Number(m[1]); state.open.add(state.item); }
+  else state.view = h === "ingredients" ? "items" : "recipes";
+  render();
+  const target = state.recipe !== null ? byId(`recipe-${state.recipe}`) : state.item !== null ? byId(`item-${state.item}`) : null;
+  if (target) target.scrollIntoView({ block: "start" });
+}
+
+function header() {
+  const known = D.recipes.filter(r => r.known).length;
+  const ready = [...judged.values()].filter(j => j.state === "ready").length;
+  byId("stamp").textContent = `${D.slot}, saved ${D.saved.slice(0, 10)} ${D.saved.slice(11, 16)}, game ${D.version}`;
+  byId("grand").textContent = fmt(ready);
+  byId("grand-note").textContent = `ready to make, of ${fmt(known)} recipes you know (${fmt(D.recipes.length)} in the game)`;
+  const counts = {};
+  for (const r of D.recipes) if (r.known) counts[r.station] = (counts[r.station] || 0) + 1;
+  const box = byId("station");
+  box.replaceChildren(el("option", { value: "", textContent: "Every station" }),
+    ...Object.keys(counts).sort((a, b) => a.localeCompare(b)).map(s => el("option", { value: s, textContent: `${s} (${counts[s]})` })));
+  if (!counts[state.station]) state.station = "";
+  box.value = state.station;
+}
+
+function renderNotes() {
+  const lines = [
+    "A recipe counts as known if the game lists it at its station without being taught, or if you've learned it from reading, mail or crafting it once. That's the same test the station uses.",
+    "What you have counts the same places as the ledger: storage furniture you've placed, the contractor chests, built-in storage in your apartment, and what you carry. Stations only use what's put in their slots, so bring the ingredients with you.",
+    "An ingredient marked (any) takes any mix of the items in its group; hover over it for the list. Water counts the litres in your canisters and bottles. Tools with uses, such as a can opener, count their uses.",
+    "Ready means you have every ingredient and the skill. One level under the skill minimum is often allowed, so those recipes count as ready with a warning.",
+    "Station tiers (Crude, Makeshift, Sun, Large and the like) and extra variant items aren't checked, because they live in each station's own data. They're listed on the recipe instead.",
+  ];
+  byId("notes").replaceChildren(...lines.map(t => el("li", { textContent: t })),
+    el("li", { textContent: "The game PC sends each new save here within about five minutes, and this page picks it up by itself. Check for a new save does it right away." }));
+}
+
+async function refresh() {
+  try {
+    const res = await fetch("recipes.json", { cache: "no-store" });
+    if (!res.ok) throw new Error(res.status);
+    const next = await res.json();
+    if (D && next.saved === D.saved) return;
+    const first = !D;
+    D = next;
+    index(); header(); renderNotes();
+    if (first) route(); else render();
+  } catch (err) {
+    if (!D) byId("stamp").textContent = "No recipe data yet. It appears once the game PC sends a save.";
+  }
+}
+
+async function api(path, options) {
+  const res = await fetch(path, { cache: "no-store", ...options });
+  if (!res.ok) throw new Error(res.status);
+  return res.json();
+}
+
+async function checkNow() {
+  const say = text => { byId("check-note").textContent = text; };
+  const before = D && D.saved;
+  byId("check").disabled = true;
+  say("Asking the game PC to check");
+  try {
+    let s = await api("api/check", { method: "POST" });
+    const deadline = Date.now() + CHECK_LIMIT_MS;
+    while (s.phase !== "done" && Date.now() < deadline) {
+      say(s.message || (s.connected ? "Asking the game PC to check" : "Waiting for the game PC. This can take up to a minute."));
+      await new Promise(done => setTimeout(done, 1000));
+      s = await api("api/status");
+    }
+    if (s.phase !== "done") {
+      say(s.connected ? "The game PC hasn't answered. Try again in a minute."
+                      : "The game PC is off or logged out, so it can't check right now. The check will run when it's back.");
+      return;
+    }
+    await refresh();
+    say(D && D.saved !== before ? `Updated to ${D.slot}, saved ${D.saved.slice(0, 10)} ${D.saved.slice(11, 16)}.` : s.message);
+  } catch (err) {
+    say("Couldn't reach the server. Reload the page and try again.");
+  } finally {
+    byId("check").disabled = false;
+  }
+}
+
+byId("tab-recipes").onclick = () => go("");
+byId("tab-items").onclick = () => go("ingredients");
+byId("search").oninput = e => {
+  state.query = e.target.value;
+  // A search starts over from the whole list, keeping the view you're in.
+  if (state.recipe !== null || state.item !== null) {
+    history.replaceState(null, "", state.view === "items" ? "#ingredients" : location.pathname);
+    state.recipe = state.item = null;
+  }
+  render();
+};
+byId("station").onchange = e => { state.station = e.target.value; render(); };
+byId("show").onchange = e => { state.show = e.target.value; render(); };
+byId("own").onchange = e => { state.own = e.target.value; render(); };
+byId("check").onclick = checkNow;
+window.onhashchange = route;
+refresh();
+setInterval(() => { if (!document.hidden) refresh(); }, POLL_MS);
+</script>
+</body>
+</html>

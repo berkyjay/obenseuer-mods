@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tenement Resource Ledger</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@400;500;600&family=Saira+Stencil+One&display=swap">
+<style>
+/* Layout: a stock sheet. Totals by place first, then the item-by-place ledger, then each container. */
+:root {
+  --bg: #e7eae4; --panel: #f4f5f1; --fg: #1c2320; --muted: #56615a; --line: #c4cbc2;
+  --accent: #0d675a; --accent-soft: #d2e6df; --brass: #7d5200; --brass-soft: #f0e2c2;
+  --red: #a11f1f; --red-soft: #f6d8d5; --finished: #a3aba5;
+  --display: "Saira Stencil One", "Arial Narrow", Impact, sans-serif;
+  --body: "IBM Plex Sans Condensed", "Arial Narrow", "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #131816; --panel: #1b211e; --fg: #e4e8e3; --muted: #9aa69e; --line: #343d38;
+  --accent: #64c6b1; --accent-soft: #1c3a33; --brass: #e2b65a; --brass-soft: #3a2f17;
+  --red: #f39a90; --red-soft: #472020; --finished: #66706a; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #131816; --panel: #1b211e; --fg: #e4e8e3; --muted: #9aa69e; --line: #343d38;
+  --accent: #64c6b1; --accent-soft: #1c3a33; --brass: #e2b65a; --brass-soft: #3a2f17;
+  --red: #f39a90; --red-soft: #472020; --finished: #66706a; color-scheme: dark }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 400 15px/1.4 var(--body); }
+/* Full window width, so the table's place columns fit on a wide screen without scrolling. */
+.page { padding-block: 28px 48px;
+  padding-left: max(clamp(16px, 2.5vw, 40px), env(safe-area-inset-left, 0px));
+  padding-right: max(clamp(16px, 2.5vw, 40px), env(safe-area-inset-right, 0px));
+  display: grid; gap: 26px; }
+.page > * { min-width: 0; }
+header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 32px; }
+h1 { margin: 0; font: 400 clamp(30px, 6vw, 46px)/1.05 var(--display); letter-spacing: .01em; text-wrap: balance; }
+.stamp { margin: 6px 0 0; color: var(--muted); }
+.check-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 10px; }
+#check { font: inherit; font-weight: 500; color: var(--accent); background: var(--panel); border: 1px solid var(--accent);
+  border-radius: 3px; padding: 5px 12px; cursor: pointer; }
+#check:hover:enabled { background: var(--accent-soft); }
+#check:disabled { color: var(--muted); border-color: var(--line); cursor: default; }
+#check:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+#check-note { color: var(--muted); min-width: 0; }
+.nav { color: var(--accent); font-weight: 500; }
+.grand { margin-left: auto; text-align: right; font-variant-numeric: tabular-nums; }
+.grand b { display: block; font: 400 clamp(30px, 6vw, 46px)/1.05 var(--display); color: var(--accent); }
+h2 { margin: 0 0 10px; font-size: 13px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); }
+.places { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.place { all: unset; box-sizing: border-box; cursor: pointer; padding: 10px 12px; background: var(--panel);
+  border: 1px solid var(--line); border-radius: 3px; display: grid; gap: 1px; min-width: 0; }
+.place:hover { border-color: var(--accent); }
+.place:focus-visible, .row-btn:focus-visible, th button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.place[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); }
+.place.able { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.place .n { font-size: 24px; font-weight: 600; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.place .l { font-weight: 500; }
+.place .s { font-size: 13px; color: var(--muted); }
+.place.contractor .n { color: var(--brass); }
+.rule { margin: 10px 0 0; max-width: 72ch; color: var(--muted); }
+.rule b { color: var(--brass); font-weight: 600; }
+.tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-bottom: 8px; }
+.tools h2 { margin: 0; flex: 1 1 auto; }
+input[type=search] { font: inherit; color: inherit; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 3px; padding: 6px 10px; width: min(260px, 100%); box-sizing: border-box; }
+#reno { font: inherit; color: inherit; background: var(--panel); border: 1px solid var(--line); border-radius: 3px;
+  padding: 6px 8px; width: min(340px, 100%); box-sizing: border-box; min-width: 0; }
+#reno:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+#reno option:disabled { color: var(--finished); }
+.reno-note { margin: 0 0 8px; max-width: 90ch; }
+.crew { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 6px; margin-bottom: 8px; }
+.crew[hidden] { display: none; }
+.chip { display: grid; padding: 5px 10px; border: 1px solid var(--line); border-radius: 3px; min-width: 0; color: var(--muted); }
+.chip b { font-weight: 500; }
+.chip small { font-size: 13px; }
+.chip.able { border-color: var(--accent); background: var(--accent-soft); color: var(--fg); }
+.chip.using { border-color: var(--accent); background: var(--accent); color: var(--bg); }
+.chip.good { border-color: var(--accent); background: var(--accent-soft); color: var(--fg); }
+.chip.part { border-color: var(--brass); background: var(--brass-soft); color: var(--fg); }
+.chip.bad { border-color: var(--red); background: var(--red-soft); color: var(--fg); }
+.chip.bad b { color: var(--red); }
+.chip.link { font: inherit; text-align: left; width: 100%; cursor: pointer; }
+.chip.link:hover b { text-decoration: underline; }
+.chip.link:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+th.able { box-shadow: inset 0 -3px 0 var(--accent); }
+th.able button { color: var(--accent); }
+tr.need-ok td { background: var(--accent-soft); }
+tr.need-move td { background: var(--brass-soft); }
+tr.need-short td { background: var(--red-soft); }
+tr.need-short td:first-child, tr.need-short .row-btn::before, tr.need-short .need-cell { color: var(--red); }
+td.need-cell, td.status { font-weight: 600; }
+td.status, th.status { text-align: left; }
+tr.need-ok .status { color: var(--accent); }
+tr.need-move .status { color: var(--brass); }
+tr.need-short .status { color: var(--red); }
+.scroll { overflow-x: auto; border: 1px solid var(--line); background: var(--panel); border-radius: 3px; }
+table { border-collapse: separate; border-spacing: 0; width: 100%; font-size: inherit; color: inherit; font-variant-numeric: tabular-nums; }
+th, td { padding: 5px 12px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
+th { vertical-align: bottom; font-weight: 600; white-space: normal; }  /* headings wrap; numbers don't */
+th small { display: block; font-size: 12px; font-weight: 400; color: var(--muted); }
+th button { all: unset; cursor: pointer; display: block; width: 100%; }
+th button:hover { color: var(--accent); }
+th[aria-sort="ascending"] button::after { content: " \2191"; } th[aria-sort="descending"] button::after { content: " \2193"; }
+th:first-child, td:first-child { position: sticky; left: 0; z-index: 1; text-align: left; background: var(--panel); }
+td.total, th.total { font-weight: 600; border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
+th.contractor { color: var(--brass); }
+td.contractor { background: var(--brass-soft); }
+td.nil { color: var(--line); }
+tr.none td:first-child, tr.none td.total { color: var(--muted); }
+tr.section td { font-size: 13px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); text-align: left; background: var(--bg); padding-top: 12px; }
+tr.section td:first-child { background: var(--bg); }
+.row-btn { all: unset; cursor: pointer; }
+.row-btn::before { content: "\25B8"; display: inline-block; width: 1.1em; color: var(--muted); }
+.row-btn[aria-expanded="true"]::before { content: "\25BE"; }
+.row-btn:hover { color: var(--accent); }
+tr.where td { background: var(--bg); text-align: left; white-space: normal; padding: 6px 12px 10px 30px; }
+tr.where td:first-child { position: static; }
+.where-list { display: flex; flex-wrap: wrap; gap: 4px 20px; }
+.where-list b { font-weight: 600; }
+.bins { display: grid; gap: 18px; }
+.bin-area { display: grid; gap: 6px; min-width: 0; }
+.bin-area h3 { margin: 0; font-size: 18px; font-weight: 600; }
+.bin-area h3 span { color: var(--muted); font-weight: 400; font-size: 15px; }
+.bin-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 8px; align-items: start; }
+.bin { padding: 9px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 3px; min-width: 0; }
+.bin-head { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+.bin-head b { font-weight: 600; }
+.bin-head span { color: var(--muted); font-size: 13px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.bin p { margin: 3px 0 0; }
+.bin .empty { color: var(--muted); }
+.notes { color: var(--muted); max-width: 76ch; }
+.notes ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+code { font-size: 13px; overflow-wrap: anywhere; }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <header>
+    <div>
+      <h1>Tenement Resource Ledger</h1>
+      <p class="stamp" id="stamp"></p>
+      <div class="check-row">
+        <button type="button" id="check">Check for a new save</button>
+        <span id="check-note" role="status"></span>
+        <a class="nav" href="recipes.html">Recipe book &rarr;</a>
+      </div>
+    </div>
+    <div class="grand"><b id="grand"></b><span id="kinds"></span></div>
+  </header>
+
+  <section>
+    <h2>Where it is</h2>
+    <div class="places" id="places"></div>
+    <p class="rule"><b>Moving stock matters for upgrades.</b> A contractor only draws from their own chest and what you carry, backpack included. Anything in the Basement or your apartment doesn't count until you carry it or move it to their chest.</p>
+  </section>
+
+  <section>
+    <div class="tools">
+      <h2 id="ledger-title">Ledger</h2>
+      <select id="reno" aria-label="Show what a renovation needs"></select>
+      <input type="search" id="search" placeholder="Find an item" aria-label="Find an item">
+    </div>
+    <div class="crew" id="crew" hidden></div>
+    <div class="crew" id="facts" hidden></div>
+    <p class="reno-note" id="reno-note" role="status" hidden></p>
+    <div class="scroll"><table id="ledger"></table></div>
+  </section>
+
+  <section>
+    <h2>Container by container</h2>
+    <div class="bins" id="bins"></div>
+  </section>
+
+  <section class="notes">
+    <h2>What this counts</h2>
+    <ul id="notes"></ul>
+  </section>
+</div>
+
+<script>
+const POLL_MS = 60000, CHECK_LIMIT_MS = 90000;
+const CARRIED = "On you";
+const NEED_ORDER = { short: 0, move: 1, ok: 2 };
+let D = null, places = [];
+const state = { query: "", area: null, sort: "name", dir: 1, open: new Set(), reno: "" };
+const fmt = n => n.toLocaleString("en-US");
+const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); e.append(...kids); return e; };
+const byId = id => document.getElementById(id);
+
+const amountIn = (item, area) => D.containers.filter(c => c.area === area).reduce((s, c) => s + (c.items[item.id] || 0), 0);
+const selected = () => D.renovations.find(r => r.id === state.reno) || null;
+const available = id => D.renovations.find(r => r.id === id && r.done < r.total);
+const slug = id => id.split("/").pop().replace(".asset", "");
+
+// The address holds the selection, so Back retraces a chain of required upgrades.
+function fromAddress() {
+  const want = decodeURIComponent(location.hash.slice(1));
+  const r = D.renovations.find(x => slug(x.id) === want);
+  return r && available(r.id) ? r.id : "";
+}
+
+function choose(id) {
+  state.reno = id;
+  byId("reno").value = id;
+  renderPlaces();
+  renderLedger();
+  if (fromAddress() !== id) location.hash = id ? encodeURIComponent(slug(id)) : "";
+}
+
+// A contractor can only use their own chest and what you carry, so that's what counts as in place.
+function planFor(r) {
+  if (!r) return null;
+  const needs = Object.entries(r.needs).map(([id, need]) => ({ item: D.items.find(i => i.id === Number(id)), need }));
+  const carried = item => amountIn(item, CARRIED);
+  const toMove = c => needs.reduce((s, n) => s + Math.max(0, n.need - amountIn(n.item, c.chest) - carried(n.item)), 0);
+  const who = r.contractors.filter(c => c.chest).sort((a, b) => toMove(a) - toMove(b))[0] || null;
+  const lines = {};
+  for (const { item, need } of needs) {
+    const short = need - item.total;
+    const missing = who ? need - amountIn(item, who.chest) - carried(item) : 0;
+    lines[item.id] = short > 0 ? { state: "short", need, text: `Short ${fmt(short)}` }
+      : missing > 0 ? { state: "move", need, text: `Move ${fmt(missing)} to ${who.chest}` }
+      : { state: "ok", need, text: who ? "In place" : "In stock" };
+  }
+  return { who, lines };
+}
+
+const canUse = (r, area) => !!r && r.contractors.some(c => c.chest === area);
+
+function renderCrew(r, plan) {
+  const box = byId("crew");
+  box.hidden = !r;
+  if (!r) return;
+  box.replaceChildren(...D.contractors.map(c => {
+    const able = r.contractors.some(x => x.name === c.name);
+    const using = plan.who && plan.who.name === c.name;
+    const text = using ? `Using ${c.chest}` : !able ? "Can't do this" : c.chest ? "Can do this" : "Can do this, chest not visited";
+    return el("div", { className: "chip" + (using ? " using" : able ? " able" : "") },
+      el("b", { textContent: c.name }), el("small", { textContent: text }));
+  }));
+}
+
+function renderFacts(r) {
+  const box = byId("facts");
+  box.hidden = !r;
+  if (!r) return;
+  const each = r.total > 1 ? "Per apartment. " : "";
+  // The game wants OC to start a job and RM to finish it, from the wallet, not the bank.
+  const payment = (title, cost, have, unit) => {
+    const short = Math.round((cost - have) * 10) / 10;
+    return el("div", { className: "chip " + (short > 0 ? "bad" : "good") },
+      el("b", { textContent: `${title}: ${fmt(cost)} ${unit}` }),
+      el("small", { textContent: `${each}You have ${fmt(have)}${short > 0 ? `, short ${fmt(short)}` : ""}` }));
+  };
+  const required = q => {
+    const text = q.of > 1 ? `Required: done in ${q.met} of the ${q.of} apartments left` : q.met ? "Required: done" : "Required: not done";
+    const look = "chip " + (q.met === q.of ? "good" : q.met ? "part" : "bad");
+    const target = available(q.id);
+    if (!target) return el("div", { className: look }, el("b", { textContent: q.label }), el("small", { textContent: text }));
+    const link = el("button", { className: look + " link", type: "button" },
+      el("b", { textContent: `${q.label} →` }), el("small", { textContent: text }));
+    link.onclick = () => choose(target.id);
+    return link;
+  };
+  box.replaceChildren(payment("First payment", r.first, D.money.oc, "OC"), payment("Final payment", r.final, D.money.rm, "RM"),
+    ...r.requires.map(required));
+}
+
+function renderRenoNote(r, plan) {
+  const note = byId("reno-note");
+  note.hidden = !r;
+  renderCrew(r, plan);
+  renderFacts(r);
+  if (!r) return;
+  const left = r.total - r.done;
+  const count = s => Object.values(plan.lines).filter(l => l.state === s).length;
+  const names = r.contractors.map(c => c.name).join(" or ");
+  note.textContent = [
+    plan.who ? `${plan.who.name} does this job, using ${plan.who.chest}.`
+      : names ? `${names} does this job, and you haven't been to their chest yet.` : "No contractor offers this yet.",
+    r.ready ? (r.total > 1 ? `Prerequisites are met in ${r.ready} of the ${left} apartments left.` : "Prerequisites are met.")
+      : r.requires.some(q => q.met < q.of) ? "The required upgrades aren't done yet." : "Already under way.",
+    Object.keys(plan.lines).length ? `${count("ok")} ready, ${count("move")} to move, ${count("short")} short.` : "No materials needed.",
+  ].join(" ");
+}
+
+function renderReno() {
+  const headings = [...new Set(D.renovations.map(r => r.heading))];
+  const option = r => {
+    const finished = r.done === r.total;
+    const progress = finished ? " (done)" : r.done ? ` (${r.done} of ${r.total} done)` : "";
+    return el("option", { value: r.id, disabled: finished, textContent: r.label + progress });
+  };
+  const box = byId("reno");
+  box.replaceChildren(el("option", { value: "", textContent: "Choose a renovation" }), ...headings.map(h => {
+    const group = el("optgroup", { label: h }, ...D.renovations.filter(r => r.heading === h).map(option));
+    return group;
+  }));
+  const pick = selected();
+  if (!pick || pick.done === pick.total) state.reno = "";
+  box.value = state.reno;
+}
+
+function header() {
+  const held = D.items.filter(i => i.total > 0).length;
+  byId("stamp").textContent = `${D.slot}, saved ${D.saved.slice(0, 10)} ${D.saved.slice(11, 16)}, game ${D.version}`;
+  byId("grand").textContent = fmt(D.items.reduce((s, i) => s + i.total, 0));
+  byId("kinds").textContent = `units, ${held} of ${D.items.length} materials in stock`;
+}
+
+function renderPlaces() {
+  const box = byId("places");
+  const reno = selected();
+  box.replaceChildren(...places.map(a => {
+    const count = D.containers.filter(c => c.area === a.name && c.total > 0).length;
+    const b = el("button", { className: `place ${a.kind}${canUse(reno, a.name) ? " able" : ""}`, type: "button" },
+      el("span", { className: "n", textContent: fmt(a.total) }),
+      el("span", { className: "l", textContent: a.name }),
+      el("span", { className: "s", textContent: a.sub || `${count} container${count === 1 ? "" : "s"}` }));
+    b.setAttribute("aria-pressed", String(state.area === a.name));
+    b.onclick = () => { state.area = state.area === a.name ? null : a.name; renderPlaces(); renderLedger(); };
+    return b;
+  }));
+}
+
+function sortHead(label, key, cls, sub) {
+  const th = el("th", { className: cls || "", scope: "col" });
+  const b = el("button", { type: "button", textContent: label });
+  b.onclick = () => {
+    if (state.sort === key) state.dir = -state.dir;
+    else { state.sort = key; state.dir = key === "name" ? 1 : -1; }
+    renderLedger();
+  };
+  th.append(b);
+  if (sub) th.append(el("small", { textContent: sub }));
+  if (state.sort === key) th.setAttribute("aria-sort", state.dir > 0 ? "ascending" : "descending");
+  return th;
+}
+
+function value(item, key) {
+  return key === "name" ? item.name : key === "total" ? item.total : amountIn(item, key);
+}
+
+function itemRows(list, tbody, plan) {
+  const cols = places.length + (plan ? 4 : 2);
+  for (const item of list) {
+    const b = el("button", { className: "row-btn", type: "button", textContent: item.name });
+    const open = state.open.has(item.id);
+    b.setAttribute("aria-expanded", String(open));
+    b.onclick = () => { open ? state.open.delete(item.id) : state.open.add(item.id); renderLedger(); };
+    const line = plan && plan.lines[item.id];
+    const tr = el("tr", { className: line ? "need-" + line.state : item.total ? "" : "none" }, el("td", {}, b));
+    if (plan) tr.append(el("td", { className: "need-cell", textContent: line ? fmt(line.need) : "" }),
+      el("td", { className: "status", textContent: line ? line.text : "" }));
+    tr.append(el("td", { className: "total", textContent: fmt(item.total) }));
+    for (const a of places) {
+      const n = amountIn(item, a.name);
+      tr.append(el("td", { className: (n ? "" : "nil ") + (a.kind === "contractor" ? "contractor" : ""), textContent: n ? fmt(n) : "\u00B7" }));
+    }
+    tbody.append(tr);
+    if (open) {
+      const list = D.containers.filter(c => c.items[item.id]).sort((x, y) => y.items[item.id] - x.items[item.id])
+        .map(c => el("span", {}, `${c.area}, ${c.name}: `, el("b", { textContent: fmt(c.items[item.id]) })));
+      tbody.append(el("tr", { className: "where" }, el("td", { colSpan: cols },
+        el("div", { className: "where-list" }, ...(list.length ? list : ["None in your storage."])))));
+    }
+  }
+}
+
+function renderLedger() {
+  const q = state.query.trim().toLowerCase();
+  const reno = selected(), plan = planFor(reno);
+  const needed = plan ? D.items.filter(i => plan.lines[i.id]) : [];
+  const shown = D.items.filter(i => !needed.includes(i) && i.name.toLowerCase().includes(q) && (!state.area || amountIn(i, state.area) > 0));
+  const cmp = (x, y) => {
+    const a = value(x, state.sort), b = value(y, state.sort);
+    return (typeof a === "string" ? a.localeCompare(b) : a - b) * state.dir || x.name.localeCompare(y.name);
+  };
+  const head = el("tr", {}, sortHead("Item", "name"));
+  if (plan) head.append(el("th", { scope: "col", textContent: "Need" }), el("th", { className: "status", scope: "col", textContent: "Status" }));
+  head.append(sortHead("Total", "total", "total"),
+    ...places.map(a => sortHead(a.name, a.name, (a.kind === "contractor" ? "contractor" : "") + (canUse(reno, a.name) ? " able" : ""), a.sub)));
+  const body = el("tbody");
+  const cols = places.length + (plan ? 4 : 2);
+  const section = text => body.append(el("tr", { className: "section" }, el("td", { colSpan: cols, textContent: text })));
+  if (needed.length) {
+    section(`Needed for ${reno.label}`);
+    itemRows(needed.sort((x, y) => NEED_ORDER[plan.lines[x.id].state] - NEED_ORDER[plan.lines[y.id].state] || cmp(x, y)), body, plan);
+  }
+  const main = shown.filter(i => !i.extra).sort(cmp), extra = shown.filter(i => i.extra).sort(cmp);
+  if (main.length) section("Tenement resources");
+  itemRows(main, body, plan);
+  if (extra.length) section("Also needed for upgrades");
+  itemRows(extra, body, plan);
+  if (!shown.length && !needed.length) body.append(el("tr", {}, el("td", { colSpan: cols, textContent: "No items match." })));
+  renderRenoNote(reno, plan);
+  byId("ledger").replaceChildren(el("thead", {}, head), body);
+  byId("ledger-title").textContent = state.area ? `Ledger: ${state.area}` : "Ledger";
+}
+
+function renderBins() {
+  const names = id => D.items.find(i => i.id === Number(id)).name;
+  byId("bins").replaceChildren(...D.areas.map(a => {
+    const bins = D.containers.filter(c => c.area === a.name).map(c => {
+      const lines = Object.entries(c.items).sort((x, y) => y[1] - x[1]).map(([id, n]) => `${names(id)} ${fmt(n)}`).join(", ");
+      return el("div", { className: "bin" },
+        el("div", { className: "bin-head" }, el("b", { textContent: c.name }),
+          el("span", { textContent: `${c.used} of ${c.slots} slots used` })),
+        el("p", { className: lines ? "" : "empty", textContent: lines || "No resources" }));
+    });
+    return el("div", { className: "bin-area" },
+      el("h3", {}, a.name + " ", el("span", { textContent: `${a.sub ? a.sub + ", " : ""}${fmt(a.total)} units` })),
+      el("div", { className: "bin-grid" }, ...bins));
+  }));
+}
+
+function renderNotes() {
+  const lines = [
+    "Counted: storage furniture you've placed, the contractor resource chests, built-in storage in your apartment, and what you carry.",
+    "An item is a resource if the game tags it Tenement Resource. Renovations also require a few untagged items, so those are listed separately.",
+    "Choosing a renovation moves its materials to the top. Red means you own too little in total. Amber means you own enough, but it needs moving to the contractor's chest or into what you carry.",
+    `Not counted: ${fmt(D.heaterFuel)} firewood already loaded in apartment heaters, ${fmt(D.residentStock)} units in residents' apartments, shop stock, and loot you haven't picked up.`,
+    "Other items in these containers, such as food or tools, aren't listed. Slot counts include them.",
+  ];
+  byId("notes").replaceChildren(...lines.map(t => el("li", { textContent: t })),
+    el("li", { textContent: "The game PC sends each new save here within about five minutes, and this page picks it up by itself. Check for a new save does it right away." }));
+}
+
+async function refresh() {
+  try {
+    const res = await fetch("ledger.json", { cache: "no-store" });
+    if (!res.ok) throw new Error(res.status);
+    const next = await res.json();
+    if (D && next.saved === D.saved) return;
+    const first = !D;
+    D = next;
+    if (first) state.reno = fromAddress();
+    // A contractor's chest stays visible when empty, since that's where stock gets moved to.
+    places = D.areas.filter(a => a.total > 0 || a.kind === "contractor");
+    if (!places.some(a => a.name === state.area)) state.area = null;
+    header(); renderReno(); renderPlaces(); renderLedger(); renderBins(); renderNotes();
+  } catch (err) {
+    if (!D) byId("stamp").textContent = "No ledger yet. It appears once the game PC sends a save.";
+  }
+}
+
+async function api(path, options) {
+  const res = await fetch(path, { cache: "no-store", ...options });
+  if (!res.ok) throw new Error(res.status);
+  return res.json();
+}
+
+async function checkNow() {
+  const say = text => { byId("check-note").textContent = text; };
+  const before = D && D.saved;
+  byId("check").disabled = true;
+  say("Asking the game PC to check");
+  try {
+    let s = await api("api/check", { method: "POST" });
+    const deadline = Date.now() + CHECK_LIMIT_MS;
+    while (s.phase !== "done" && Date.now() < deadline) {
+      // The game PC reconnects within a minute between runs, so a short silence isn't a problem.
+      say(s.message || (s.connected ? "Asking the game PC to check" : "Waiting for the game PC. This can take up to a minute."));
+      await new Promise(done => setTimeout(done, 1000));
+      s = await api("api/status");
+    }
+    if (s.phase !== "done") {
+      say(s.connected ? "The game PC hasn't answered. Try again in a minute."
+                      : "The game PC is off or logged out, so it can't check right now. The check will run when it's back.");
+      return;
+    }
+    await refresh();
+    say(D && D.saved !== before ? `Updated to ${D.slot}, saved ${D.saved.slice(0, 10)} ${D.saved.slice(11, 16)}.` : s.message);
+  } catch (err) {
+    say("Couldn't reach the server. Reload the page and try again.");
+  } finally {
+    byId("check").disabled = false;
+  }
+}
+
+byId("search").oninput = e => { state.query = e.target.value; if (D) renderLedger(); };
+byId("reno").onchange = e => choose(e.target.value);
+window.onhashchange = () => { if (D && fromAddress() !== state.reno) choose(fromAddress()); };
+byId("check").onclick = checkNow;
+refresh();
+setInterval(() => { if (!document.hidden) refresh(); }, POLL_MS);
+</script>
+</body>
+</html>

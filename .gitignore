@@ -1,0 +1,27 @@
+# ---- .NET build output ----
+bin/
+obj/
+
+# ---- Game files and built mods: never commit ----
+*.dll
+*.pdb
+*.tnmt
+*.assets
+
+# ---- Resource Ledger: private settings, game data and generated files ----
+config.json
+renovations.json
+ledger.json
+recipes.json
+__pycache__/
+
+# ---- Editors / IDE ----
+.vs/
+.vscode/
+.idea/
+*.user
+
+# ---- OS cruft ----
+Thumbs.db
+Desktop.ini
+desktop.ini

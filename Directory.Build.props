@@ -1,0 +1,39 @@
+<Project>
+  <!-- Shared settings for every mod under mods/. Each mod is a BepInEx 6 (Unity Mono) plugin. -->
+  <PropertyGroup>
+    <GameDir Condition="'$(GameDir)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Obenseuer</GameDir>
+    <ManagedDir>$(GameDir)\Obenseuer_Data\Managed</ManagedDir>
+
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- Keep the local build folder out of the DLL's debug info. -->
+    <PathMap>$(MSBuildThisFileDirectory)=/_/</PathMap>
+    <!-- The game's Unity.Entities.dll wants a newer System.Net.Http than netstandard2.1 ships; mods don't use it. -->
+    <MSBuildWarningsAsMessages>$(MSBuildWarningsAsMessages);MSB3277</MSBuildWarningsAsMessages>
+    <RestoreAdditionalProjectSources>
+      https://api.nuget.org/v3/index.json;
+      https://nuget.bepinex.dev/v3/index.json
+    </RestoreAdditionalProjectSources>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BepInEx.Unity.Mono" Version="6.0.0-be.*" IncludeAssets="compile" />
+    <PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" />
+    <!-- BepInEx.Unity.Mono drags in stub Unity 5.6 assemblies; compile against the game's Unity 6 ones instead. -->
+    <PackageReference Include="UnityEngine" Version="5.6.1" ExcludeAssets="all" />
+    <PackageReference Include="Unity.InputSystem" Version="1.5.0" ExcludeAssets="all" />
+  </ItemGroup>
+
+  <!-- Compile against the game's own assemblies; never copy them into the build output. -->
+  <ItemGroup>
+    <Reference Include="Assembly-CSharp" HintPath="$(ManagedDir)\Assembly-CSharp.dll" Private="false" />
+    <Reference Include="UnityEngine" HintPath="$(ManagedDir)\UnityEngine.dll" Private="false" />
+    <Reference Include="UnityEngine.CoreModule" HintPath="$(ManagedDir)\UnityEngine.CoreModule.dll" Private="false" />
+    <Reference Include="UnityEngine.UI" HintPath="$(ManagedDir)\UnityEngine.UI.dll" Private="false" />
+    <Reference Include="UnityEngine.UIModule" HintPath="$(ManagedDir)\UnityEngine.UIModule.dll" Private="false" />
+  </ItemGroup>
+</Project>

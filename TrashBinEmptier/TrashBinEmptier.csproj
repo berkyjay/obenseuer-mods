@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>TrashBinEmptier</AssemblyName>
+    <RootNamespace>TrashBinEmptier</RootNamespace>
+    <Product>Trash Bin Emptier</Product>
+    <Description>Placed Trash Bins empty themselves once a day; Green Dumpsters always keep their contents.</Description>
+    <Version>0.1.0</Version>
+    <BepInExPluginGuid>berkyjay.obenseuer.trashbinemptier</BepInExPluginGuid>
+  </PropertyGroup>
+</Project>

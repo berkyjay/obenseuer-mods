@@ -1,0 +1,37 @@
+# /etc/systemd/system/obenseuer-ledger.service
+# Serves the Obenseuer tenement resource ledger on the LAN.
+#
+#   install:  deploy/install.sh fills in @USER@, @GROUP@ and @DIR@
+#   data:     ledger.json is pushed here from the game PC over ssh by export_ledger.py
+#
+[Unit]
+Description=Obenseuer tenement resource ledger
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+User=@USER@
+Group=@GROUP@
+WorkingDirectory=@DIR@/site
+ExecStart=/usr/bin/python3 @DIR@/server.py
+
+Restart=on-failure
+RestartSec=5
+# ollama shares this box, so yield to it.
+Nice=5
+CPUWeight=40
+IOWeight=50
+MemoryMax=128M
+
+# Only ever reads the site folder; the ssh push writes there, not this service.
+ProtectSystem=strict
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>NotificationLog</AssemblyName>
+    <RootNamespace>NotificationLog</RootNamespace>
+    <Product>Notification Log</Product>
+    <Description>Adds a Log tab to the game menu that keeps the notifications shown on screen.</Description>
+    <Version>0.1.0</Version>
+    <BepInExPluginGuid>berkyjay.obenseuer.notificationlog</BepInExPluginGuid>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Unity.TextMeshPro" HintPath="$(ManagedDir)\Unity.TextMeshPro.dll" Private="false" />
+    <Reference Include="UnityEngine.InputLegacyModule" HintPath="$(ManagedDir)\UnityEngine.InputLegacyModule.dll" Private="false" />
+  </ItemGroup>
+</Project>

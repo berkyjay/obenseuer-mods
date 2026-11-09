@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>StatusIconTiming</AssemblyName>
+    <RootNamespace>StatusIconTiming</RootNamespace>
+    <Product>Status Icon Timing</Product>
+    <Description>Sets how high a need has to get before its status icon appears.</Description>
+    <Version>0.1.1</Version>
+    <BepInExPluginGuid>berkyjay.obenseuer.statusicontiming</BepInExPluginGuid>
+  </PropertyGroup>
+</Project>
