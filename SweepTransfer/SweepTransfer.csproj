@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>SweepTransfer</AssemblyName>
+    <RootNamespace>SweepTransfer</RootNamespace>
+    <Product>Sweep Transfer</Product>
+    <Description>Hold a key and sweep the mouse over items to move each one to the other open container.</Description>
+    <Version>0.1.0</Version>
+    <BepInExPluginGuid>berkyjay.obenseuer.sweeptransfer</BepInExPluginGuid>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="UnityEngine.InputLegacyModule" HintPath="$(ManagedDir)\UnityEngine.InputLegacyModule.dll" Private="false" />
+  </ItemGroup>
+</Project>
