@@ -13,6 +13,12 @@ and unzip it anywhere on the PC with the game, or use the files in this folder.
 
 - **Where it is:** every tenement resource you've collected, listed by item and by
   container, across your placed storage, contractor chests and what you carry.
+- **Search:** searching for an item opens its row to show where it's stored, every
+  renovation it's used in (finished ones greyed out), and how many all the
+  unfinished ones need in total. Click a renovation to select it.
+- **Contractors:** click a contractor to see everything their unfinished
+  renovations still need, how much is already in their chest, and how much you
+  still have to transfer.
 - **Renovations:** a drop-down lists each unique renovation, with finished ones
   greyed out. Picking one moves its materials to the top of the list. Red means
   you own too little. Amber means you own enough but need to move it, and it says

@@ -114,6 +114,13 @@ tr.where td { background: var(--bg); text-align: left; white-space: normal; padd
 tr.where td:first-child { position: static; }
 .where-list { display: flex; flex-wrap: wrap; gap: 4px 20px; }
 .where-list b { font-weight: 600; }
+.where-list + .where-list { margin-top: 6px; }
+.where-list .tag { color: var(--muted); font-size: 13px; letter-spacing: .04em; text-transform: uppercase; }
+.use-link { all: unset; cursor: pointer; color: var(--accent); }
+.use-link:hover { text-decoration: underline; }
+.use-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.where-list .finished { color: var(--finished); }
+.where-list .short { color: var(--red); font-weight: 600; }
 .bins { display: grid; gap: 18px; }
 .bin-area { display: grid; gap: 6px; min-width: 0; }
 .bin-area h3 { margin: 0; font-size: 18px; font-weight: 600; }
@@ -180,7 +187,7 @@ const POLL_MS = 60000, CHECK_LIMIT_MS = 90000;
 const CARRIED = "On you";
 const NEED_ORDER = { short: 0, move: 1, ok: 2 };
 let D = null, places = [];
-const state = { query: "", area: null, sort: "name", dir: 1, open: new Set(), reno: "" };
+const state = { query: "", area: null, sort: "name", dir: 1, open: new Set(), shut: new Set(), reno: "", crew: "" };
 const fmt = n => n.toLocaleString("en-US");
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); e.append(...kids); return e; };
 const byId = id => document.getElementById(id);
@@ -190,20 +197,32 @@ const selected = () => D.renovations.find(r => r.id === state.reno) || null;
 const available = id => D.renovations.find(r => r.id === id && r.done < r.total);
 const slug = id => id.split("/").pop().replace(".asset", "");
 
-// The address holds the selection, so Back retraces a chain of required upgrades.
+const crewSlug = name => "contractor-" + name.replace(/\s+/g, "-");
+const jobsOf = name => D.renovations.filter(r => r.done < r.total && r.contractors.some(c => c.name === name));
+
+// The address holds the selection, a renovation or a contractor, so Back retraces where you've been.
 function fromAddress() {
   const want = decodeURIComponent(location.hash.slice(1));
+  const c = D.contractors.find(x => crewSlug(x.name) === want);
+  if (c) return { reno: "", crew: c.name };
   const r = D.renovations.find(x => slug(x.id) === want);
-  return r && available(r.id) ? r.id : "";
+  return { reno: r && available(r.id) ? r.id : "", crew: "" };
 }
 
-function choose(id) {
-  state.reno = id;
-  byId("reno").value = id;
+function show(reno, crew) {
+  state.reno = reno;
+  state.crew = crew;
+  byId("reno").value = reno;
   renderPlaces();
   renderLedger();
-  if (fromAddress() !== id) location.hash = id ? encodeURIComponent(slug(id)) : "";
+  const now = fromAddress();
+  if (now.reno !== reno || now.crew !== crew) {
+    location.hash = reno ? encodeURIComponent(slug(reno)) : crew ? encodeURIComponent(crewSlug(crew)) : "";
+  }
 }
+
+const choose = id => show(id, "");
+const chooseCrew = name => show("", state.crew === name ? "" : name);
 
 // A contractor can only use their own chest and what you carry, so that's what counts as in place.
 function planFor(r) {
@@ -223,18 +242,57 @@ function planFor(r) {
   return { who, lines };
 }
 
-const canUse = (r, area) => !!r && r.contractors.some(c => c.chest === area);
+// Everything a contractor's unfinished jobs still need, counting each apartment left, against
+// what's already in their chest or on you. Tiers can be skipped, so this is the most it would take.
+function planForCrew(name) {
+  const who = D.contractors.find(c => c.name === name);
+  if (!who) return null;
+  const jobs = jobsOf(name);
+  const totals = {};
+  for (const r of jobs) for (const [id, n] of Object.entries(r.needs)) totals[id] = (totals[id] || 0) + n * (r.total - r.done);
+  const lines = {};
+  for (const [id, need] of Object.entries(totals)) {
+    const item = D.items.find(i => i.id === Number(id));
+    const inChest = who.chest ? amountIn(item, who.chest) : 0, carried = amountIn(item, CARRIED);
+    const short = Math.max(0, need - item.total);
+    const transfer = who.chest ? Math.max(0, Math.min(need, item.total) - inChest - carried) : 0;
+    const parts = [who.chest ? `${fmt(inChest)} in chest` : "Chest not visited"];
+    if (carried) parts.push(`${fmt(carried)} on you`);
+    if (transfer) parts.push(`transfer ${fmt(transfer)}`);
+    if (short) parts.push(`short ${fmt(short)}`);
+    lines[id] = { state: short ? "short" : transfer ? "move" : "ok", need, text: parts.join(", ") };
+  }
+  return { who: who.chest ? who : null, crew: who, jobs, lines };
+}
+
+// The chests that matter for what's selected: the job's contractors, or the chosen contractor.
+function litChests(reno) {
+  if (reno) return new Set(reno.contractors.map(c => c.chest).filter(Boolean));
+  const c = D.contractors.find(x => x.name === state.crew);
+  return new Set(c && c.chest ? [c.chest] : []);
+}
 
 function renderCrew(r, plan) {
   const box = byId("crew");
-  box.hidden = !r;
-  if (!r) return;
+  box.hidden = false;
   box.replaceChildren(...D.contractors.map(c => {
-    const able = r.contractors.some(x => x.name === c.name);
-    const using = plan.who && plan.who.name === c.name;
-    const text = using ? `Using ${c.chest}` : !able ? "Can't do this" : c.chest ? "Can do this" : "Can do this, chest not visited";
-    return el("div", { className: "chip" + (using ? " using" : able ? " able" : "") },
+    const jobs = jobsOf(c.name).length;
+    const count = `${jobs} unfinished renovation${jobs === 1 ? "" : "s"}`;
+    let look = "", text = count;
+    if (r) {
+      const able = r.contractors.some(x => x.name === c.name);
+      const using = plan.who && plan.who.name === c.name;
+      look = using ? " using" : able ? " able" : "";
+      text = using ? `Using ${c.chest}` : !able ? "Can't do this" : c.chest ? "Can do this" : "Can do this, chest not visited";
+    } else if (state.crew === c.name) {
+      look = " using";
+      text = `Showing what ${count} need`;
+    }
+    const chip = el("button", { className: "chip link" + look, type: "button" },
       el("b", { textContent: c.name }), el("small", { textContent: text }));
+    chip.title = `Show everything ${c.name}'s unfinished renovations need`;
+    chip.onclick = () => chooseCrew(c.name);
+    return chip;
   }));
 }
 
@@ -266,9 +324,19 @@ function renderFacts(r) {
 
 function renderRenoNote(r, plan) {
   const note = byId("reno-note");
-  note.hidden = !r;
+  note.hidden = !plan;
   renderCrew(r, plan);
   renderFacts(r);
+  if (plan && plan.crew) {
+    const count = s => Object.values(plan.lines).filter(l => l.state === s).length;
+    const n = plan.jobs.length;
+    note.textContent = !n ? `${plan.crew.name} has no unfinished renovations left.` : [
+      `${plan.crew.name} can do ${n} unfinished renovation${n === 1 ? "" : "s"}${plan.crew.chest ? `, using ${plan.crew.chest}` : ", and you haven't been to their chest yet"}.`,
+      "Apartment jobs count each apartment left, and tiers can be skipped, so this is the most it would take.",
+      `${count("ok")} ready, ${count("move")} to transfer, ${count("short")} short.`,
+    ].join(" ");
+    return;
+  }
   if (!r) return;
   const left = r.total - r.done;
   const count = s => Object.values(plan.lines).filter(l => l.state === s).length;
@@ -308,10 +376,10 @@ function header() {
 
 function renderPlaces() {
   const box = byId("places");
-  const reno = selected();
+  const lit = litChests(selected());
   box.replaceChildren(...places.map(a => {
     const count = D.containers.filter(c => c.area === a.name && c.total > 0).length;
-    const b = el("button", { className: `place ${a.kind}${canUse(reno, a.name) ? " able" : ""}`, type: "button" },
+    const b = el("button", { className: `place ${a.kind}${lit.has(a.name) ? " able" : ""}`, type: "button" },
       el("span", { className: "n", textContent: fmt(a.total) }),
       el("span", { className: "l", textContent: a.name }),
       el("span", { className: "s", textContent: a.sub || `${count} container${count === 1 ? "" : "s"}` }));
@@ -339,13 +407,42 @@ function value(item, key) {
   return key === "name" ? item.name : key === "total" ? item.total : amountIn(item, key);
 }
 
+// The renovations an item goes into: unfinished ones as links, finished ones greyed out.
+function usesOf(item) {
+  const all = D.renovations.filter(r => r.needs[item.id]);
+  if (!all.length) return [el("span", { className: "finished", textContent: "No renovation needs this." })];
+  return all.map(r => {
+    const text = `${r.label} ×${fmt(r.needs[item.id])}${r.total > 1 ? " each" : ""}`;
+    if (r.done >= r.total) return el("span", { className: "finished", textContent: `${text} (done)` });
+    const go = el("button", { className: "use-link", type: "button", textContent: text });
+    go.onclick = () => { choose(r.id); byId("ledger-title").scrollIntoView({ block: "start" }); };
+    return go;
+  });
+}
+
+// What every unfinished renovation needs of an item, counting each apartment still to do.
+// Tiers can be skipped, so this is the most it would take to build everything left.
+function totalNeeded(item) {
+  const open = D.renovations.filter(r => r.needs[item.id] && r.done < r.total);
+  const need = open.reduce((s, r) => s + r.needs[item.id] * (r.total - r.done), 0);
+  if (!need) return [el("span", { className: "finished", textContent: "Nothing left to build needs this." })];
+  const short = need - item.total;
+  const each = open.some(r => r.total > 1) ? ", counting each apartment left" : "";
+  return [el("b", { textContent: fmt(need) }), ` for every unfinished renovation${each}. You have ${fmt(item.total)}`,
+    short > 0 ? el("span", { className: "short", textContent: `, short ${fmt(short)}.` }) : "."];
+}
+
 function itemRows(list, tbody, plan) {
   const cols = places.length + (plan ? 4 : 2);
+  // A row matching the search opens by itself; a click closes it until the search changes.
+  const q = state.query.trim().toLowerCase();
   for (const item of list) {
     const b = el("button", { className: "row-btn", type: "button", textContent: item.name });
-    const open = state.open.has(item.id);
+    const found = q !== "" && item.name.toLowerCase().includes(q);
+    const open = found ? !state.shut.has(item.id) : state.open.has(item.id);
+    const flip = set => set.has(item.id) ? set.delete(item.id) : set.add(item.id);
     b.setAttribute("aria-expanded", String(open));
-    b.onclick = () => { open ? state.open.delete(item.id) : state.open.add(item.id); renderLedger(); };
+    b.onclick = () => { flip(found ? state.shut : state.open); renderLedger(); };
     const line = plan && plan.lines[item.id];
     const tr = el("tr", { className: line ? "need-" + line.state : item.total ? "" : "none" }, el("td", {}, b));
     if (plan) tr.append(el("td", { className: "need-cell", textContent: line ? fmt(line.need) : "" }),
@@ -360,14 +457,19 @@ function itemRows(list, tbody, plan) {
       const list = D.containers.filter(c => c.items[item.id]).sort((x, y) => y.items[item.id] - x.items[item.id])
         .map(c => el("span", {}, `${c.area}, ${c.name}: `, el("b", { textContent: fmt(c.items[item.id]) })));
       tbody.append(el("tr", { className: "where" }, el("td", { colSpan: cols },
-        el("div", { className: "where-list" }, ...(list.length ? list : ["None in your storage."])))));
+        el("div", { className: "where-list" }, el("span", { className: "tag", textContent: "Where it is" }),
+          ...(list.length ? list : ["None in your storage."])),
+        el("div", { className: "where-list" }, el("span", { className: "tag", textContent: "Used in" }), ...usesOf(item)),
+        el("div", { className: "where-list" }, el("span", { className: "tag", textContent: "Total needed" }),
+          el("span", {}, ...totalNeeded(item))))));
     }
   }
 }
 
 function renderLedger() {
   const q = state.query.trim().toLowerCase();
-  const reno = selected(), plan = planFor(reno);
+  const reno = selected(), plan = reno ? planFor(reno) : state.crew ? planForCrew(state.crew) : null;
+  const lit = litChests(reno);
   const needed = plan ? D.items.filter(i => plan.lines[i.id]) : [];
   const shown = D.items.filter(i => !needed.includes(i) && i.name.toLowerCase().includes(q) && (!state.area || amountIn(i, state.area) > 0));
   const cmp = (x, y) => {
@@ -377,12 +479,12 @@ function renderLedger() {
   const head = el("tr", {}, sortHead("Item", "name"));
   if (plan) head.append(el("th", { scope: "col", textContent: "Need" }), el("th", { className: "status", scope: "col", textContent: "Status" }));
   head.append(sortHead("Total", "total", "total"),
-    ...places.map(a => sortHead(a.name, a.name, (a.kind === "contractor" ? "contractor" : "") + (canUse(reno, a.name) ? " able" : ""), a.sub)));
+    ...places.map(a => sortHead(a.name, a.name, (a.kind === "contractor" ? "contractor" : "") + (lit.has(a.name) ? " able" : ""), a.sub)));
   const body = el("tbody");
   const cols = places.length + (plan ? 4 : 2);
   const section = text => body.append(el("tr", { className: "section" }, el("td", { colSpan: cols, textContent: text })));
   if (needed.length) {
-    section(`Needed for ${reno.label}`);
+    section(reno ? `Needed for ${reno.label}` : `Still needed by ${plan.crew.name}`);
     itemRows(needed.sort((x, y) => NEED_ORDER[plan.lines[x.id].state] - NEED_ORDER[plan.lines[y.id].state] || cmp(x, y)), body, plan);
   }
   const main = shown.filter(i => !i.extra).sort(cmp), extra = shown.filter(i => i.extra).sort(cmp);
@@ -417,6 +519,7 @@ function renderNotes() {
     "Counted: storage furniture you've placed, the contractor resource chests, built-in storage in your apartment, and what you carry.",
     "An item is a resource if the game tags it Tenement Resource. Renovations also require a few untagged items, so those are listed separately.",
     "Choosing a renovation moves its materials to the top. Red means you own too little in total. Amber means you own enough, but it needs moving to the contractor's chest or into what you carry.",
+    "Clicking a contractor does the same for all their unfinished renovations: how much is already in their chest, and how much still needs transferring.",
     `Not counted: ${fmt(D.heaterFuel)} firewood already loaded in apartment heaters, ${fmt(D.residentStock)} units in residents' apartments, shop stock, and loot you haven't picked up.`,
     "Other items in these containers, such as food or tools, aren't listed. Slot counts include them.",
   ];
@@ -432,7 +535,8 @@ async function refresh() {
     if (D && next.saved === D.saved) return;
     const first = !D;
     D = next;
-    if (first) state.reno = fromAddress();
+    if (first) Object.assign(state, fromAddress());
+    if (state.crew && !D.contractors.some(c => c.name === state.crew)) state.crew = "";
     // A contractor's chest stays visible when empty, since that's where stock gets moved to.
     places = D.areas.filter(a => a.total > 0 || a.kind === "contractor");
     if (!places.some(a => a.name === state.area)) state.area = null;
@@ -476,9 +580,13 @@ async function checkNow() {
   }
 }
 
-byId("search").oninput = e => { state.query = e.target.value; if (D) renderLedger(); };
+byId("search").oninput = e => { state.query = e.target.value; state.shut.clear(); if (D) renderLedger(); };
 byId("reno").onchange = e => choose(e.target.value);
-window.onhashchange = () => { if (D && fromAddress() !== state.reno) choose(fromAddress()); };
+window.onhashchange = () => {
+  if (!D) return;
+  const a = fromAddress();
+  if (a.reno !== state.reno || a.crew !== state.crew) show(a.reno, a.crew);
+};
 byId("check").onclick = checkNow;
 refresh();
 setInterval(() => { if (!document.hidden) refresh(); }, POLL_MS);
