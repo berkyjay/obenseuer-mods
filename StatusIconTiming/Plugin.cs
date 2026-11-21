@@ -22,8 +22,8 @@ public class Plugin : BaseUnityPlugin
         AppearAt = Config.Bind("Icons", "AppearAt", 66,
             new ConfigDescription(
                 "How high a need has to get, out of 100, before its icon appears. The game's own value is 33. " +
-                "Covers hunger, thirst, tiredness, toilet, depression and the alcohol, mushroom, smoking and gambling needs. " +
-                "Hygiene counts down, so it appears at 100 minus this. Health, bleeding and the duck need keep the game's rules.",
+                "Covers hunger, thirst, tiredness, toilet and the alcohol, mushroom, smoking and gambling needs. " +
+                "Hygiene counts down, so it appears at 100 minus this. Health, mood, bleeding and the duck need keep the game's rules.",
                 new AcceptableValueRange<int>(1, 99)));
         new Harmony(MyPluginInfo.PLUGIN_GUID).PatchAll(typeof(Plugin).Assembly);
         Log.LogInfo($"{MyPluginInfo.PLUGIN_NAME} {MyPluginInfo.PLUGIN_VERSION} loaded, icons appear at {AppearAt.Value}");
@@ -38,27 +38,33 @@ public class Plugin : BaseUnityPlugin
 // PlayerStatsUI.BarUpdate decides for each icon whether it's hidden, with the thresholds written
 // into the code: "need < 33" for the nine needs (toilet checks bowel and bladder, so ten in all),
 // "health > 66" and "hygiene > 50". The needs and hygiene are swapped for calls that read the config.
-// Health keeps the game's 66, so damage is still flagged early. Its number is still
-// counted, as a check that the method is the one this patch was written for.
+// Health keeps the game's 66, so damage is still flagged early, and mood (the depression icon,
+// effectiveMentalHealth) keeps its 33, as it can jump in one go. Those two are still counted, as a
+// check that the method is the one this patch was written for.
 [HarmonyPatch(typeof(PlayerStatsUI), nameof(PlayerStatsUI.BarUpdate))]
 internal static class MoveThresholds
 {
-    private const int ExpectedNeeds = 10;
+    private const int ExpectedNeeds = 9;
 
     private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
     {
         List<CodeInstruction> code = instructions.ToList();
-        List<CodeInstruction> needs = code.Where(i => IsFloat(i, 33f)).ToList();
+        // Each "< 33" directly follows the load of the value it tests, so mood's is the one after
+        // the effectiveMentalHealth field.
+        FieldInfo moodField = AccessTools.Field(typeof(PlayerStatsMentalHealth), nameof(PlayerStatsMentalHealth.effectiveMentalHealth));
+        List<int> thirtyThrees = Enumerable.Range(0, code.Count).Where(i => IsFloat(code[i], 33f)).ToList();
+        List<CodeInstruction> mood = thirtyThrees.Where(i => i > 0 && code[i - 1].LoadsField(moodField)).Select(i => code[i]).ToList();
+        List<CodeInstruction> needs = thirtyThrees.Select(i => code[i]).Except(mood).ToList();
         List<CodeInstruction> health = code.Where(i => IsFloat(i, 66f)).ToList();
         List<CodeInstruction> hygiene = code.Where(i => IsFloat(i, 50f)).ToList();
 
         // A game update that changes the method would make a blind swap hit the wrong numbers.
         // Leave the game's rules in place instead.
-        if (needs.Count != ExpectedNeeds || health.Count != 1 || hygiene.Count != 1)
+        if (needs.Count != ExpectedNeeds || mood.Count != 1 || health.Count != 1 || hygiene.Count != 1)
         {
             Plugin.Log.LogWarning(
-                $"PlayerStatsUI.BarUpdate has changed (found {needs.Count}x 33, {health.Count}x 66, {hygiene.Count}x 50; " +
-                $"expected {ExpectedNeeds}, 1, 1). Status icons keep the game's thresholds.");
+                $"PlayerStatsUI.BarUpdate has changed (found {needs.Count}x 33 for needs, {mood.Count}x 33 for mood, " +
+                $"{health.Count}x 66, {hygiene.Count}x 50; expected {ExpectedNeeds}, 1, 1, 1). Status icons keep the game's thresholds.");
             return code;
         }
 

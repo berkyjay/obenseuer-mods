@@ -4,7 +4,7 @@
     <RootNamespace>StatusIconTiming</RootNamespace>
     <Product>Status Icon Timing</Product>
     <Description>Sets how high a need has to get before its status icon appears.</Description>
-    <Version>0.1.1</Version>
+    <Version>0.1.2</Version>
     <BepInExPluginGuid>berkyjay.obenseuer.statusicontiming</BepInExPluginGuid>
   </PropertyGroup>
 </Project>

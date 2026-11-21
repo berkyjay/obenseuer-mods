@@ -13,25 +13,28 @@ tiredness at 100. This mod moves that point to 66 by default.
 |---|---|---|
 | Hunger, thirst, tiredness | 33 or more | 66 or more |
 | Toilet | 33 or more, bowel or bladder | 66 or more |
-| Depression | 33 or more | 66 or more |
 | Alcohol, mushroom, smoking and gambling needs | 33 or more | 66 or more |
 | Hygiene (counts down) | 50 or less | 34 or less (100 minus the setting) |
 | Health (counts down) | 66 or less | Unchanged |
+| Mood (depression) | 33 or more | Unchanged |
 | Bleeding | Any bleeding | Unchanged |
 | Duck need | 60 or more | Unchanged |
 
 Icons still pulse at 90, as in the game.
 
-### Why health, bleeding and the duck need are left alone
+### Why health, mood, bleeding and the duck need are left alone
 
 - **Health:** losing health is worth knowing about early, and the game already
   waits until you've lost a third of it before showing the icon.
+- **Mood:** it doesn't only creep up. Wetting or soiling yourself raises it by
+  10 to 33 at once, and drink, low hygiene and fungal disease push it up too.
+  At 100 it sets off self-harm and binge events, so the early warning stays.
 - **Bleeding:** a bleed needs treating straight away, so its icon still appears
   at the first drop.
 - **Duck need:** its icon already appears at the moment it starts to hurt you.
   At 60 it begins raising your depression, so there's nothing to move.
 
-The `AppearAt` setting doesn't affect these three, and this version has no
+The `AppearAt` setting doesn't affect these four, and this version has no
 setting for them.
 
 If a game update changes the code this mod patches, the mod logs a warning and
