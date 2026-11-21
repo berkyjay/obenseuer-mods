@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>StandbyPower</AssemblyName>
+    <RootNamespace>StandbyPower</RootNamespace>
+    <Product>Standby Power</Product>
+    <Description>Electric crafting stations draw only standby power while switched on but not crafting.</Description>
+    <Version>0.1.0</Version>
+    <BepInExPluginGuid>berkyjay.obenseuer.standbypower</BepInExPluginGuid>
+  </PropertyGroup>
+</Project>
