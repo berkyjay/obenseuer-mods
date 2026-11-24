@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>CheckoutToInventory</AssemblyName>
+    <RootNamespace>CheckoutToInventory</RootNamespace>
+    <Product>Checkout To Inventory</Product>
+    <Description>Goods you pay for at a shop checkout go straight into your inventory instead of waiting on the belt.</Description>
+    <Version>0.1.0</Version>
+    <BepInExPluginGuid>berkyjay.obenseuer.checkouttoinventory</BepInExPluginGuid>
+  </PropertyGroup>
+</Project>
