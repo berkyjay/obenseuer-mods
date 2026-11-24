@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>BulkCraft</AssemblyName>
+    <RootNamespace>BulkCraft</RootNamespace>
+    <Product>Bulk Craft</Product>
+    <Description>Craft all for instant recipes, and Bulk Fill / Bulk Unfill for liquid containers.</Description>
+    <Version>0.1.0</Version>
+    <BepInExPluginGuid>berkyjay.obenseuer.bulkcraft</BepInExPluginGuid>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Unity.TextMeshPro" HintPath="$(ManagedDir)\Unity.TextMeshPro.dll" Private="false" />
+  </ItemGroup>
+</Project>
