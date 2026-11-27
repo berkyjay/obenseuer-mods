@@ -329,15 +329,24 @@ def renovations(slot):
     rows = []
     for track in plans["tracks"]:
         owners = [None] if track["building"] else [a for a, groups in grouped if track["group"] in groups]
+        # Most Luxurious tiers are placeholders, with no materials and no contractor.
+        real = [t for t in track["tiers"] if t["tier"] > 0 and (t["needs"] or t["contractors"])]
+
+        def next_tier(apartment, track=track, real=real):
+            owner = general if track["building"] else apartment
+            now = track["enum"].index(owner[track["field"]])
+            return min((t["tier"] for t in real if t["tier"] > now), default=None)
+
         for tier in track["tiers"]:
-            # Most Luxurious tiers are placeholders, with no materials and no contractor.
-            if not owners or tier["tier"] == 0 or not (tier["needs"] or tier["contractors"]):
+            if not owners or tier not in real:
                 continue
             left = [a for a in owners if not reached(tier["path"], a)]
             unmet = {a and a["apartmentNumber"]: [r for r in tier["requires"] if not reached(r, a)] for a in left}
             ready = [a for a in left if not unmet[a and a["apartmentNumber"]] and not busy(track, a)]
             rows.append({"id": tier["path"], "label": name(tier["path"]), "heading": track["heading"],
                          "done": len(owners) - len(left), "total": len(owners), "ready": len(ready),
+                         # Places where this is the next tier up and could start now, without skipping one.
+                         "next": sum(next_tier(a) == tier["tier"] for a in ready),
                          "first": int(tier["first"] * price_scale), "final": int(tier["final"] * price_scale),
                          "requires": [{"id": r, "label": name(r), "met": sum(reached(r, a) for a in left), "of": len(left)}
                                       for r in tier["requires"]],

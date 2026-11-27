@@ -67,6 +67,14 @@ input[type=search] { font: inherit; color: inherit; background: var(--panel); bo
 .reno-note { margin: 0 0 8px; max-width: 90ch; }
 .crew { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 6px; margin-bottom: 8px; }
 .crew[hidden] { display: none; }
+.scope { display: flex; margin-bottom: 8px; }
+.scope[hidden] { display: none; }
+.scope button { font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--line); padding: 5px 14px; cursor: pointer; }
+.scope button + button { border-left: 0; }
+.scope button:first-child { border-radius: 3px 0 0 3px; }
+.scope button:last-child { border-radius: 0 3px 3px 0; }
+.scope button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.scope button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .chip { display: grid; padding: 5px 10px; border: 1px solid var(--line); border-radius: 3px; min-width: 0; color: var(--muted); }
 .chip b { font-weight: 500; }
 .chip small { font-size: 13px; }
@@ -166,6 +174,7 @@ code { font-size: 13px; overflow-wrap: anywhere; }
       <input type="search" id="search" placeholder="Find an item" aria-label="Find an item">
     </div>
     <div class="crew" id="crew" hidden></div>
+    <div class="scope" id="scope" role="group" aria-label="Which renovations to count" hidden></div>
     <div class="crew" id="facts" hidden></div>
     <p class="reno-note" id="reno-note" role="status" hidden></p>
     <div class="scroll"><table id="ledger"></table></div>
@@ -187,7 +196,7 @@ const POLL_MS = 60000, CHECK_LIMIT_MS = 90000;
 const CARRIED = "On you";
 const NEED_ORDER = { short: 0, move: 1, ok: 2 };
 let D = null, places = [];
-const state = { query: "", area: null, sort: "name", dir: 1, open: new Set(), shut: new Set(), reno: "", crew: "" };
+const state = { query: "", area: null, sort: "name", dir: 1, open: new Set(), shut: new Set(), reno: "", crew: "", scope: "all" };
 const fmt = n => n.toLocaleString("en-US");
 const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); e.append(...kids); return e; };
 const byId = id => document.getElementById(id);
@@ -198,7 +207,10 @@ const available = id => D.renovations.find(r => r.id === id && r.done < r.total)
 const slug = id => id.split("/").pop().replace(".asset", "");
 
 const crewSlug = name => "contractor-" + name.replace(/\s+/g, "-");
-const jobsOf = name => D.renovations.filter(r => r.done < r.total && r.contractors.some(c => c.name === name));
+// "all": every unfinished renovation, each apartment left. "now": only the next tier up wherever it
+// could start today, so nothing is counted that a later tier would replace.
+const placesFor = r => state.scope === "now" ? r.next || 0 : r.total - r.done;
+const jobsOf = name => D.renovations.filter(r => placesFor(r) > 0 && r.contractors.some(c => c.name === name));
 
 // The address holds the selection, a renovation or a contractor, so Back retraces where you've been.
 function fromAddress() {
@@ -249,7 +261,7 @@ function planForCrew(name) {
   if (!who) return null;
   const jobs = jobsOf(name);
   const totals = {};
-  for (const r of jobs) for (const [id, n] of Object.entries(r.needs)) totals[id] = (totals[id] || 0) + n * (r.total - r.done);
+  for (const r of jobs) for (const [id, n] of Object.entries(r.needs)) totals[id] = (totals[id] || 0) + n * placesFor(r);
   const lines = {};
   for (const [id, need] of Object.entries(totals)) {
     const item = D.items.find(i => i.id === Number(id));
@@ -272,12 +284,26 @@ function litChests(reno) {
   return new Set(c && c.chest ? [c.chest] : []);
 }
 
+// The All remaining / Available now switch, shown only while a contractor is chosen.
+function renderScope() {
+  const box = byId("scope");
+  box.hidden = !state.crew;
+  const pick = (scope, label) => {
+    const b = el("button", { type: "button", textContent: label });
+    b.setAttribute("aria-pressed", String(state.scope === scope));
+    b.onclick = () => { state.scope = scope; renderLedger(); };
+    return b;
+  };
+  box.replaceChildren(pick("all", "All remaining"), pick("now", "Available now"));
+}
+
 function renderCrew(r, plan) {
   const box = byId("crew");
   box.hidden = false;
+  renderScope();
   box.replaceChildren(...D.contractors.map(c => {
     const jobs = jobsOf(c.name).length;
-    const count = `${jobs} unfinished renovation${jobs === 1 ? "" : "s"}`;
+    const count = state.scope === "now" ? `${jobs} available now` : `${jobs} unfinished renovation${jobs === 1 ? "" : "s"}`;
     let look = "", text = count;
     if (r) {
       const able = r.contractors.some(x => x.name === c.name);
@@ -329,10 +355,13 @@ function renderRenoNote(r, plan) {
   renderFacts(r);
   if (plan && plan.crew) {
     const count = s => Object.values(plan.lines).filter(l => l.state === s).length;
-    const n = plan.jobs.length;
-    note.textContent = !n ? `${plan.crew.name} has no unfinished renovations left.` : [
-      `${plan.crew.name} can do ${n} unfinished renovation${n === 1 ? "" : "s"}${plan.crew.chest ? `, using ${plan.crew.chest}` : ", and you haven't been to their chest yet"}.`,
-      "Apartment jobs count each apartment left, and tiers can be skipped, so this is the most it would take.",
+    const n = plan.jobs.length, now = state.scope === "now";
+    const chest = plan.crew.chest ? `, using ${plan.crew.chest}` : ", and you haven't been to their chest yet";
+    note.textContent = !n ? (now ? `${plan.crew.name} has nothing you could start right now.` : `${plan.crew.name} has no unfinished renovations left.`) : [
+      now ? `${plan.crew.name} has ${n} renovation${n === 1 ? "" : "s"} you could start now${chest}.`
+        : `${plan.crew.name} can do ${n} unfinished renovation${n === 1 ? "" : "s"}${chest}.`,
+      now ? "That's the next tier up in each place, with its required upgrades done and no job already running there. Apartment jobs count each apartment where they could start."
+        : "Apartment jobs count each apartment left, and tiers can be skipped, so this is the most it would take.",
       `${count("ok")} ready, ${count("move")} to transfer, ${count("short")} short.`,
     ].join(" ");
     return;
@@ -519,7 +548,7 @@ function renderNotes() {
     "Counted: storage furniture you've placed, the contractor resource chests, built-in storage in your apartment, and what you carry.",
     "An item is a resource if the game tags it Tenement Resource. Renovations also require a few untagged items, so those are listed separately.",
     "Choosing a renovation moves its materials to the top. Red means you own too little in total. Amber means you own enough, but it needs moving to the contractor's chest or into what you carry.",
-    "Clicking a contractor does the same for all their unfinished renovations: how much is already in their chest, and how much still needs transferring.",
+    "Clicking a contractor does the same for all their unfinished renovations: how much is already in their chest, and how much still needs transferring. Available now narrows it to the next tier up wherever one could start today.",
     `Not counted: ${fmt(D.heaterFuel)} firewood already loaded in apartment heaters, ${fmt(D.residentStock)} units in residents' apartments, shop stock, and loot you haven't picked up.`,
     "Other items in these containers, such as food or tools, aren't listed. Slot counts include them.",
   ];

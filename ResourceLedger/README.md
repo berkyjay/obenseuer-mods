@@ -18,7 +18,8 @@ and unzip it anywhere on the PC with the game, or use the files in this folder.
   unfinished ones need in total. Click a renovation to select it.
 - **Contractors:** click a contractor to see everything their unfinished
   renovations still need, how much is already in their chest, and how much you
-  still have to transfer.
+  still have to transfer. Switch to **Available now** to count only the next
+  tier up wherever one could start today.
 - **Renovations:** a drop-down lists each unique renovation, with finished ones
   greyed out. Picking one moves its materials to the top of the list. Red means
   you own too little. Amber means you own enough but need to move it, and it says
