@@ -40,6 +40,19 @@ setting for them.
 If a game update changes the code this mod patches, the mod logs a warning and
 leaves the icons as the game has them.
 
+## Every icon on the Character tab
+
+With icons appearing later, you can still check any status at a glance: the
+Character tab shows every status icon, all the time, in the strip along its top
+(the row of blank boxes the game leaves empty). The skills below don't move.
+
+They're copies of the HUD icons, coloured green to red the same way, and
+hovering over one gives the game's own tooltip with its percentage. They pulse
+at the same points as the HUD. The order is health, bleeding, hunger, thirst,
+tiredness, toilet, mood and hygiene, then the alcohol, mushroom, smoking,
+gambling and duck needs while you have that addiction. Bleeding shows green
+when you aren't bleeding.
+
 ## Install
 
 You need BepInEx 6 in the game folder first; see

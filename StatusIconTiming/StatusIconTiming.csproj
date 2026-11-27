@@ -3,8 +3,14 @@
     <AssemblyName>StatusIconTiming</AssemblyName>
     <RootNamespace>StatusIconTiming</RootNamespace>
     <Product>Status Icon Timing</Product>
-    <Description>Sets how high a need has to get before its status icon appears.</Description>
-    <Version>0.1.2</Version>
+    <Description>Sets how high a need has to get before its status icon appears, and shows every status icon on the Character tab.</Description>
+    <Version>0.2.0</Version>
     <BepInExPluginGuid>berkyjay.obenseuer.statusicontiming</BepInExPluginGuid>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="Unity.TextMeshPro" HintPath="$(ManagedDir)\Unity.TextMeshPro.dll" Private="false" />
+    <Reference Include="UnityEngine.AnimationModule" HintPath="$(ManagedDir)\UnityEngine.AnimationModule.dll" Private="false" />
+    <Reference Include="UnityEngine.TextRenderingModule" HintPath="$(ManagedDir)\UnityEngine.TextRenderingModule.dll" Private="false" />
+  </ItemGroup>
 </Project>
